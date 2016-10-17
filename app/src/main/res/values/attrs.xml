@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="BottomView">
+        <attr name="text_color" format="reference" />
+        <attr name="bv_height" format="integer" />
+        <attr name="text_select_color" format="reference" />
+        <attr name="ico_background1" format="reference" />
+        <attr name="ico_background2" format="reference" />
+        <attr name="ico_background3" format="reference" />
+        <attr name="ico_background4" format="reference" />
+        <attr name="ico_background5" format="reference" />
+        <attr name="count" format="integer" />
+        <attr name="layout_item" format="integer"/>
+    </declare-styleable>
+</resources><!--
+<resources>
+    <declare-styleable　name="MyView">
+    <attr　name="textColor"　format="color"　/>
+    <attr　name="textSize"　format="dimension"　/>
+</declare-styleable>　
+    </resources>
+-->
