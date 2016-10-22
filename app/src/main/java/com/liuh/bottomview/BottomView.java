@@ -1,84 +1,161 @@
 package com.liuh.bottomview;
 
-import android.content.Context;
-import android.content.res.TypedArray;
-import android.graphics.Color;
-import android.util.AttributeSet;
-import android.widget.LinearLayout;
-
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Created by Liuhe on 2016/10/15.
+ * Created by Liuhe on 2016/10/23.
  */
 
+import android.content.Context;
+import android.database.DataSetObserver;
+import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.BaseAdapter;
+import android.widget.LinearLayout;
+
+/**
+ * @author Orhan Obut
+ */
 public class BottomView extends LinearLayout {
 
-    private Context context;
-    private AttributeSet attrs;
-    private int bv_height = -1;
-    private int count;
-    private int layout;
+    /**
+     * Invalid flag for the resources
+     */
+    private static final int INVALID = -1;
+
+    /**
+     * Adapter that stores all row items
+     */
+    private BaseAdapter adapter;
+
+    /**
+     * Observer for the data changes
+     */
+    private DataSetObserver dataSetObserver;
+
+    /**
+     * Layout inflater to create views
+     */
+    private final LayoutInflater layoutInflater;
+
+    /**
+     * It is used to separate items if it is set
+     */
+    private int dividerViewResourceId = INVALID;
+
+    /**
+     * Determines if the header and footer view should be added
+     */
+    private View headerView;
+    private View footerView;
+
+    /**
+     * Special item click listener in order to allow to user to take an action
+     */
+    private OnItemClickListener itemClickListener;
 
     public BottomView(Context context) {
-        super(context);
+        this(context, null);
     }
 
     public BottomView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init(context, attrs);
+        layoutInflater = LayoutInflater.from(getContext());
+        setOrientation(VERTICAL);
     }
 
-    public BottomView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init(context, attrs);
+    public void setDividerView(int resourceId) {
+        if (resourceId < 0) {
+            throw new IllegalStateException("Resource Id cannot be negative");
+        }
+        dividerViewResourceId = resourceId;
     }
 
-    private void init(Context context, AttributeSet attrs) {
-        this.context = context;
-        this.attrs = attrs;
-        getAttr();
-        initView();
+    public void setOnItemClickListener(OnItemClickListener listener) {
+        this.itemClickListener = listener;
     }
 
-    private void initView() {
-        this.setBackgroundColor(Color.parseColor("#eeeeee"));
-        this.setOrientation(HORIZONTAL);
-        List<ViewModel> datas = new ArrayList<ViewModel>();
-        datas.add(new ViewModel("helo",R.mipmap.ic_launcher,0));
-        datas.add(new ViewModel("helo",R.mipmap.ic_launcher,0));
-        BottomViewAdapter adapter = new BottomViewAdapter(context, new BottomViewListener() {
-            @Override
-            public void setView(ViewHelper helper, ViewModel viewModel) {
-                helper.setText(R.id.item,viewModel.getName());
+    public void setHeaderView(View view) {
+        headerView = view;
+    }
+
+    public void setHeaderView(int resourceId) {
+        headerView = layoutInflater.inflate(resourceId, this, false);
+    }
+
+    public void setFooterView(View view) {
+        footerView = view;
+    }
+
+    public void setFooterView(int resourceId) {
+        footerView = layoutInflater.inflate(resourceId, this, false);
+    }
+
+    public void setAdapter(BaseAdapter adapter) {
+        if (adapter == null) {
+            throw new NullPointerException("Adapter may not be null");
+        }
+        if (this.adapter != null && this.dataSetObserver != null) {
+            this.adapter.unregisterDataSetObserver(dataSetObserver);
+        }
+        this.adapter = adapter;
+        this.dataSetObserver = new AdapterDataSetObserver();
+        this.adapter.registerDataSetObserver(dataSetObserver);
+        resetList();
+        refreshList();
+    }
+
+    /**
+     * It is called when the notifyDataSetChanged or first initialize
+     */
+    private void refreshList() {
+        if (headerView != null) {
+            addView(headerView);
+        }
+        int count = adapter.getCount();
+        for (int i = 0; i < count; i++) {
+            final View view = adapter.getView(i, null, this);
+            final int position = i;
+            view.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (itemClickListener != null) {
+                        itemClickListener.onItemClick(adapter.getItem(position), view, position);
+                    }
+                }
+            });
+            addView(view);
+            if (dividerViewResourceId != INVALID && i != count - 1) {
+                addView(layoutInflater.inflate(dividerViewResourceId, this, false));
             }
-        }, datas, layout);
-        for (int i = 0; i < adapter.getCount(); i++) {
-            int width = UiUtils.getScreenWidth(context);
-            int v_width=width/adapter.getCount();
-            v_width=width-v_width*i;
-            this.addView(adapter.getView(i, null, this), v_width, bv_height);
+        }
+        if (footerView != null) {
+            addView(footerView);
         }
     }
 
-    @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        if (bv_height < 0) {
-            bv_height = BottomViewFaild.CUSTOM_HEIGHT;
+    /**
+     * Clears everything
+     */
+    private void resetList() {
+        this.removeAllViews();
+        invalidate();
+    }
+
+    /**
+     * observe data set changes, when the adapter notifyDataSetChanged method called, onChanged
+     * method will be called and view will be refreshed.
+     */
+    class AdapterDataSetObserver extends DataSetObserver {
+        @Override
+        public void onChanged() {
+            super.onChanged();
+            resetList();
+            refreshList();
         }
-        widthMeasureSpec = UiUtils.getScreenWidth(context);
-        heightMeasureSpec = UiUtils.dp2px(context, bv_height);
-        setMeasuredDimension(widthMeasureSpec, heightMeasureSpec);
     }
 
+    public interface OnItemClickListener {
 
-    private void getAttr() {
-        TypedArray a = context.obtainStyledAttributes(this.attrs, R.styleable.BottomView);
-        bv_height = a.getInt(R.styleable.BottomView_bv_height, -1) == BottomViewFaild.CUSTOM_HEIGHT ? BottomViewFaild.CUSTOM_HEIGHT : BottomViewFaild.GOOGLE_HEIGHT;
-        count = a.getInt(R.styleable.BottomView_count, 0);
-        layout = a.getResourceId(R.styleable.BottomView_layout_item, -1);
+        void onItemClick(Object item, View view, int position);
     }
-
-
 }
